@@ -1,0 +1,46 @@
+version: '3.8'
+
+services:
+    database:
+      container_name: database
+      image: mysql:8.0.22
+      environment:
+        - MYSQL_ROOT_PASSWORD=rO0t-123
+      ports:
+        - 3306:3306
+      healthcheck:
+        test: ["CMD", "mysqladmin" ,"ping", "-h", "localhost"]
+        timeout: 5s
+        retries: 50
+      restart: unless-stopped
+    
+    migration:
+      container_name: migration
+      env_file: .env
+      build:
+        context: .
+        dockerfile: Dockerfile
+        args:
+          - PORT=${PORT}
+      user: root
+      command: npx prisma migrate dev
+      tty: true
+      depends_on:
+        database:
+          condition: service_healthy
+      restart: 'no'
+    
+    whatsapp:
+      container_name: whatsapp
+      env_file: .env
+      build:
+        context: .
+        dockerfile: Dockerfile
+        args:
+          - PORT=${PORT}
+      depends_on:
+        migration:
+          condition: service_completed_successfully
+      ports:
+        - ${PORT}:${PORT}
+      restart: unless-stopped
